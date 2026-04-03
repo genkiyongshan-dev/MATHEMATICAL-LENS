@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>MATHEMATICAL LENS</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@300;400;500&display=swap');
+
+*{margin:0;padding:0;box-sizing:border-box}
+
+:root{
+  --void:#020304;
+  --deep:#070a0d;
+  --panel:#0b0f14;
+  --rule:#151c24;
+  --dim:#2c3544;
+  --mid:#546070;
+  --soft:#8a9aac;
+  --light:#c4d0dc;
+  --white:#eaf0f6;
+  --fire:#e85d2c;
+  --fire-g:rgba(232,93,44,0.12);
+  --ice:#2cc5e8;
+  --ice-g:rgba(44,197,232,0.08);
+}
+
+html,body{
+  width:100%;height:100%;
+  background:var(--void);color:var(--soft);
+  font-family:'JetBrains Mono',monospace;
+  overflow:hidden;
+  -webkit-user-select:none;user-select:none;
+  touch-action:manipulation;
+}
+
+.app{display:flex;flex-direction:column;height:100%}
+
+/* ─── HEADER ─── */
+.hdr{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:8px 12px;
+  background:var(--panel);
+  border-bottom:1px solid var(--rule);
+  flex-shrink:0;
+}
+.hdr-title{
+  font-family:'Instrument Sans',sans-serif;
+  font-size:11px;font-weight:500;
+  letter-spacing:4px;color:var(--dim);
+  text-transform:uppercase;
+}
+.hdr-focus{
+  display:flex;align-items:center;gap:6px;
+}
+.hdr-focus span{font-size:7px;letter-spacing:2px;color:var(--dim)}
+.focus-ring{
+  width:20px;height:20px;
+  border:1.5px solid var(--dim);
+  border-radius:50%;
+  position:relative;
+  transition:border-color 0.4s;
+}
+.focus-ring.sharp{border-color:var(--fire);box-shadow:0 0 8px var(--fire-g)}
+.focus-ring::after{
+  content:'';position:absolute;
+  top:50%;left:50%;
+  width:4px;height:4px;
+  background:var(--dim);
+  border-radius:50%;
+  transform:translate(-50%,-50%);
+  transition:background 0.3s;
+}
+.focus-ring.sharp::after{background:var(--fire)}
+.focus-pct{
+  font-size:9px;color:var(--dim);
+  font-variant-numeric:tabular-nums;
+  min-width:28px;text-align:right;
+  transition:color 0.3s;
+}
+.focus-pct.sharp{color:var(--fire)}
+
+/* ─── VIEWPORT ─── */
+.viewport{
+  flex:1;position:relative;min-height:0;
+  background:var(--void);overflow:hidden;
+}
+canvas{width:100%;height:100%;display:block}
+
+/* Grain overlay */
+.grain{
+  position:absolute;inset:0;
+  opacity:0.035;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size:128px;
+  pointer-events:none;
+  mix-blend-mode:screen;
+}
+
+.vig{
+  position:absolute;inset:0;
+  background:radial-gradient(ellipse at center,transparent 45%,rgba(2,3,4,0.65) 100%);
+  pointer-events:none;
+}
+
+/* HUD */
+.hud{
+  position:absolute;top:6px;left:8px;
+  font-size:7.5px;color:var(--dim);
+  letter-spacing:0.3px;line-height:2;
+  pointer-events:none;
+}
+.hud b{color:var(--mid);font-weight:400}
+
+/* Flash LED */
+.led{
+  position:absolute;top:6px;right:8px;
+  display:flex;align-items:center;gap:4px;
+  font-size:7px;color:var(--dim);letter-spacing:1px;
+}
+.led-dot{
+  width:5px;height:5px;border-radius:50%;
+  background:var(--rule);
+}
+.led-dot.on{
+  background:var(--white);
+  box-shadow:0 0 4px var(--light),0 0 12px rgba(234,240,246,0.15);
+}
+
+/* ─── MODE STRIP ─── */
+.modes{
+  display:flex;
+  background:var(--panel);
+  border-top:1px solid var(--rule);
+  border-bottom:1px solid var(--rule);
+  flex-shrink:0;
+}
+.mode-btn{
+  flex:1;padding:7px 0;
+  text-align:center;
+  font-family:inherit;font-size:7.5px;
+  letter-spacing:1.5px;
+  color:var(--dim);
+  background:none;border:none;
+  border-bottom:1.5px solid transparent;
+  cursor:pointer;transition:all 0.2s;
+}
+.mode-btn.on{
+  color:var(--soft);
+  border-bottom-color:var(--fire);
+}
+
+/* ─── CONTROLS ─── */
+.ctrl{
+  background:var(--panel);
+  padding:10px 12px 14px;
+  flex-shrink:0;
+  overflow-y:auto;
+  max-height:46vh;
+  -webkit-overflow-scrolling:touch;
+}
+
+.sec-label{
+  font-size:6.5px;letter-spacing:3px;
+  color:var(--dim);text-transform:uppercase;
+  margin-bottom:8px;padding-bottom:3px;
+  border-bottom:1px solid var(--rule);
+}
+
+.knob{margin-bottom:10px}
+.knob:last-child{margin-bottom:0}
+.knob-top{
+  display:flex;justify-content:space-between;
+  align-items:baseline;margin-bottom:4px;
+}
+.knob-name{font-size:7.5px;letter-spacing:1px;color:var(--dim);text-transform:uppercase}
+.knob-val{
+  font-size:9px;color:var(--mid);
+  font-weight:500;font-variant-numeric:tabular-nums;
+  min-width:40px;text-align:right;
+}
+
+input[type="range"]{
+  -webkit-appearance:none;appearance:none;
+  width:100%;height:1px;
+  background:var(--rule);outline:none;
+}
+input[type="range"]::-webkit-slider-thumb{
+  -webkit-appearance:none;
+  width:12px;height:12px;
+  background:var(--mid);border-radius:50%;
+  cursor:pointer;border:1.5px solid var(--deep);
+}
+
+.gap{height:1px;background:var(--rule);margin:12px 0}
+
+.btn-scan{
+  width:100%;padding:9px;margin-top:4px;
+  border:1px solid var(--dim);background:transparent;
+  color:var(--mid);font-family:inherit;
+  font-size:8px;letter-spacing:4px;
+  cursor:pointer;border-radius:1px;
+  transition:all 0.2s;
+}
+.btn-scan:active{background:rgba(255,255,255,0.02)}
+.btn-scan.on{border-color:var(--fire);color:var(--fire)}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="hdr">
+    <div class="hdr-title">Mathematical Lens</div>
+    <div class="hdr-focus">
+      <span>FOCUS</span>
+      <div class="focus-ring" id="fRing"></div>
+      <div class="focus-pct" id="fPct">0%</div>
+    </div>
+  </div>
+
+  <div class="viewport">
+    <canvas id="C"></canvas>
+    <div class="grain"></div>
+    <div class="vig"></div>
+    <div class="hud">
+      FRAME <b id="hF">0</b><br>
+      ON/OFF <b id="hOO">0/0</b><br>
+      SNR <b id="hS">—</b>
+    </div>
+    <div class="led">
+      <div class="led-dot" id="ledDot"></div>
+      <span id="ledTxt">IDLE</span>
+    </div>
+  </div>
+
+  <div class="modes">
+    <button class="mode-btn on" data-m="raw">RAW</button>
+    <button class="mode-btn" data-m="mono">MONO</button>
+    <button class="mode-btn" data-m="red">R</button>
+    <button class="mode-btn" data-m="green">G</button>
+    <button class="mode-btn" data-m="blue">B</button>
+  </div>
+
+  <div class="ctrl">
+
+    <div class="sec-label">Flash Physics — Unknown</div>
+
+    <div class="knob">
+      <div class="knob-top">
+        <span class="knob-name">Beam Angle</span>
+        <span class="knob-val" id="dBeam">80°</span>
+      </div>
+      <input type="range" id="kBeam" min="15" max="170" value="80">
+    </div>
+    <div class="knob">
+      <div class="knob-top">
+        <span class="knob-name">Baseline</span>
+        <span class="knob-val" id="dBase">12mm</span>
+      </div>
+      <input type="range" id="kBase" min="3" max="35" value="12">
+    </div>
+    <div class="knob">
+      <div class="knob-top">
+        <span class="knob-name">Emission Profile</span>
+        <span class="knob-val" id="dEmit">0.50</span>
+      </div>
+      <input type="range" id="kEmit" min="0" max="100" value="50">
+    </div>
+
+    <div class="gap"></div>
+    <div class="sec-label">Scatter Model</div>
+
+    <div class="knob">
+      <div class="knob-top">
+        <span class="knob-name">μs Scatter</span>
+        <span class="knob-val" id="dMuS">2.0</span>
+      </div>
+      <input type="range" id="kMuS" min="1" max="100" value="20">
+    </div>
+    <div class="knob">
+      <div class="knob-top">
+        <span class="knob-name">μa Absorb</span>
+        <span class="knob-val" id="dMuA">0.50</span>
+      </div>
+      <input type="range" id="kMuA" min="1" max="500" value="50">
+    </div>
+    <div class="knob">
+      <div class="knob-top">
+        <span class="knob-name">g Anisotropy</span>
+        <span class="knob-val" id="dG">0.80</span>
+      </div>
+      <input type="range" id="kG" min="0" max="99" value="80">
+    </div>
+
+    <div class="gap"></div>
+    <div class="sec-label">Environment</div>
+
+    <div class="knob">
+      <div class="knob-top">
+        <span class="knob-name">Ambient</span>
+        <span class="knob-val" id="dAmb">0.30</span>
+      </div>
+      <input type="range" id="kAmb" min="0" max="100" value="30">
+    </div>
+    <div class="knob">
+      <div class="knob-top">
+        <span class="knob-name">Lock-in Freq</span>
+        <span class="knob-val" id="dLock">8 Hz</span>
+      </div>
+      <input type="range" id="kLock" min="2" max="30" value="8">
+    </div>
+    <div class="knob">
+      <div class="knob-top">
+        <span class="knob-name">Accumulation</span>
+        <span class="knob-val" id="dAcc">64</span>
+      </div>
+      <input type="range" id="kAcc" min="8" max="256" value="64" step="8">
+    </div>
+
+    <button class="btn-scan" id="btnGo">▶  CAPTURE</button>
+  </div>
+</div>
+
+<script>
+// ================================================================
+//  MATHEMATICAL LENS — Inverse Scattering Camera
+//  Physical lens → replaced by mathematical reconstruction
+//  Flash emission → lock-in differential → inverse model → image
+// ================================================================
+
+const C = document.getElementById('C');
+const cx = C.getContext('2d');
+
+let W, H;
+let running = false, flashOn = false;
+let frameIdx = 0, lastToggle = 0, animId = null;
+
+// RGB accumulation buffers (3-channel)
+let onR, onG, onB, offR, offG, offB;
+let diffR, diffG, diffB;
+let scatR, scatG, scatB;
+let cntON = 0, cntOFF = 0;
+
+let viewMode = 'raw'; // raw | mono | red | green | blue
+
+// True flash params (hidden — user must discover via knobs)
+const truth = {
+  beam: 55 + Math.random() * 60,
+  baseline: 7 + Math.random() * 14,
+  emission: 0.25 + Math.random() * 0.55
+};
+
+// Scene objects with COLOR and material properties
+const scene = [];
+
+const materials = [
+  { name:'red-brick',   r:0.72, g:0.22, b:0.15, muS:2.5, muA:0.8  },
+  { name:'green-leaf',  r:0.18, g:0.65, b:0.20, muS:3.5, muA:0.5  },
+  { name:'blue-metal',  r:0.15, g:0.25, b:0.78, muS:0.4, muA:0.08 },
+  { name:'yellow-wood', r:0.70, g:0.58, b:0.22, muS:2.0, muA:0.9  },
+  { name:'white-paper', r:0.82, g:0.80, b:0.78, muS:1.0, muA:0.15 },
+  { name:'dark-fabric', r:0.10, g:0.08, b:0.12, muS:5.0, muA:2.0  },
+  { name:'skin',        r:0.72, g:0.52, b:0.42, muS:3.0, muA:0.7  },
+  { name:'cyan-glass',  r:0.20, g:0.70, b:0.75, muS:0.2, muA:0.04 },
+  { name:'orange-rust', r:0.75, g:0.38, b:0.12, muS:1.8, muA:0.6  },
+  { name:'purple-cloth',r:0.45, g:0.15, b:0.55, muS:4.0, muA:1.2  },
+];
+
+function genScene() {
+  scene.length = 0;
+  const n = 5 + Math.floor(Math.random() * 5);
+  for (let i = 0; i < n; i++) {
+    const mat = materials[Math.floor(Math.random() * materials.length)];
+    const shape = Math.random();
+    scene.push({
+      x: 0.08 + Math.random() * 0.84,
+      y: 0.08 + Math.random() * 0.84,
+      rx: 0.03 + Math.random() * 0.11,
+      ry: 0.025 + Math.random() * 0.09,
+      angle: Math.random() * Math.PI,
+      r: mat.r * (0.85 + Math.random() * 0.3),
+      g: mat.g * (0.85 + Math.random() * 0.3),
+      b: mat.b * (0.85 + Math.random() * 0.3),
+      muS: mat.muS * (0.8 + Math.random() * 0.4),
+      muA: mat.muA * (0.8 + Math.random() * 0.4),
+      type: shape < 0.35 ? 'rect' : shape < 0.65 ? 'ellipse' : 'blob',
+      seed: Math.random() * 100,
+      name: mat.name
+    });
+  }
+}
+
+// ─── PARAMS ───
+function P() {
+  return {
+    beam:     +document.getElementById('kBeam').value,
+    baseline: +document.getElementById('kBase').value,
+    emission: +document.getElementById('kEmit').value / 100,
+    muS:      +document.getElementById('kMuS').value / 10,
+    muA:      +document.getElementById('kMuA').value / 100,
+    g:        +document.getElementById('kG').value / 100,
+    ambient:  +document.getElementById('kAmb').value / 100,
+    lockin:   +document.getElementById('kLock').value,
+    accum:    +document.getElementById('kAcc').value
+  };
+}
+
+// ─── FLASH MODEL (GROUND TRUTH) ───
+function trueFlash(px, py) {
+  const dx = px - 0.5, dy = py;
+  const dist = Math.sqrt(dx*dx + dy*dy) + 0.001;
+  const ang = Math.atan2(Math.abs(dx), dy);
+  const hb = (truth.beam / 2) * Math.PI / 180;
+  let f = 0;
+  if (ang < hb) f = Math.pow(Math.cos(ang / hb * Math.PI / 2), 1 + truth.emission * 3);
+  return f / (dist * dist * 8 + 0.05);
+}
+
+// ─── OBJECT HIT TEST ───
+function hitObj(px, py, o) {
+  let lx = px - o.x, ly = py - o.y;
+  const c = Math.cos(-o.angle), s = Math.sin(-o.angle);
+  const rx = c*lx + s*ly, ry = -s*lx + c*ly;
+  let d = 0;
+  if (o.type === 'rect') {
+    if (Math.abs(rx) < o.rx && Math.abs(ry) < o.ry) {
+      d = Math.min(1 - Math.abs(rx)/o.rx, 1 - Math.abs(ry)/o.ry);
+    }
+  } else if (o.type === 'ellipse') {
+    const e = (rx*rx)/(o.rx*o.rx) + (ry*ry)/(o.ry*o.ry);
+    if (e < 1) d = 1 - e;
+  } else {
+    const a = Math.atan2(ry, rx);
+    const r = Math.sqrt(rx*rx + ry*ry);
+    const R = (o.rx+o.ry)*0.5*(1 + 0.3*Math.sin(a*3+o.seed) + 0.15*Math.sin(a*5+o.seed*2));
+    if (r < R) d = 1 - r/R;
+  }
+  return Math.max(0, Math.min(1, d));
+}
+
+// ─── FORWARD MODEL: one frame ───
+function sampleFrame(isFlash, p) {
+  const amb = p.ambient;
+  const noise = 0.012 + amb * 0.025;
+
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const px = x/W, py = y/H;
+      const i = y*W + x;
+
+      // Ambient base (neutral gray-ish environment light)
+      let vr = amb * (0.7 + 0.3*py) * 0.9;
+      let vg = amb * (0.7 + 0.3*py) * 0.92;
+      let vb = amb * (0.7 + 0.3*py) * 0.95;
+
+      // Objects
+      for (const o of scene) {
+        const depth = hitObj(px, py, o);
+        if (depth <= 0) continue;
+
+        // Ambient reflection (colored by material)
+        vr += depth * o.r * amb * 0.25;
+        vg += depth * o.g * amb * 0.25;
+        vb += depth * o.b * amb * 0.25;
+
+        if (isFlash) {
+          const fl = trueFlash(o.x, o.y);
+          const pen = Math.exp(-(o.muA + o.muS) * depth * 0.5);
+          // Each color channel reflects differently based on material color
+          vr += o.r * fl * pen * depth * 2.2;
+          vg += o.g * fl * pen * depth * 2.2;
+          vb += o.b * fl * pen * depth * 2.2;
+        }
+      }
+
+      // Background flash
+      if (isFlash) {
+        const bf = trueFlash(px, py) * 0.06;
+        vr += bf; vg += bf; vb += bf;
+      }
+
+      // Noise
+      const nr = (Math.random()-0.5)*noise;
+      const ng = (Math.random()-0.5)*noise;
+      const nb = (Math.random()-0.5)*noise;
+      vr = Math.max(0, vr+nr);
+      vg = Math.max(0, vg+ng);
+      vb = Math.max(0, vb+nb);
+
+      // Accumulate
+      if (isFlash) {
+        onR[i] = (onR[i]*cntON + vr)/(cntON+1);
+        onG[i] = (onG[i]*cntON + vg)/(cntON+1);
+        onB[i] = (onB[i]*cntON + vb)/(cntON+1);
+      } else {
+        offR[i] = (offR[i]*cntOFF + vr)/(cntOFF+1);
+        offG[i] = (offG[i]*cntOFF + vg)/(cntOFF+1);
+        offB[i] = (offB[i]*cntOFF + vb)/(cntOFF+1);
+      }
+    }
+  }
+
+  if (isFlash) cntON++; else cntOFF++;
+
+  // Diff
+  if (cntON > 0 && cntOFF > 0) {
+    for (let i = 0; i < W*H; i++) {
+      diffR[i] = onR[i] - offR[i];
+      diffG[i] = onG[i] - offG[i];
+      diffB[i] = onB[i] - offB[i];
+    }
+  }
+}
+
+// ─── INVERSE RECONSTRUCTION (Mathematical Lens) ───
+function reconstruct(p) {
+  const hb = (p.beam/2) * Math.PI / 180;
+  const em = p.emission;
+
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const px = x/W, py = y/H;
+      const i = y*W + x;
+
+      // User's model of flash
+      const dx = px-0.5, dy = py;
+      const dist = Math.sqrt(dx*dx+dy*dy)+0.001;
+      const ang = Math.atan2(Math.abs(dx), dy);
+      let uf = 0;
+      if (ang < hb) uf = Math.pow(Math.cos(ang/hb*Math.PI/2), 1+em*3);
+      uf = uf / (dist*dist*8 + 0.05);
+
+      // Inverse: divide out flash model to recover reflectance per channel
+      const inv = 1 / (uf + 0.0002);
+      const dc = Math.exp(p.muA * py * 0.25);
+      const gc = 1 / (1 - p.g*0.5 + 0.001);
+      const scale = inv * dc * gc * 0.12;
+
+      scatR[i] = Math.max(0, diffR[i] * scale);
+      scatG[i] = Math.max(0, diffG[i] * scale);
+      scatB[i] = Math.max(0, diffB[i] * scale);
+    }
+  }
+}
+
+// ─── FOCUS METRIC ───
+function calcFocus(p) {
+  const samples = 60;
+  const ratios = [];
+  const hb = (p.beam/2)*Math.PI/180;
+  const em = p.emission;
+
+  for (let i = 0; i < samples; i++) {
+    const px = 0.1 + Math.random()*0.8;
+    const py = 0.1 + Math.random()*0.8;
+    const ti = trueFlash(px, py);
+
+    const dx = px-0.5, dy = py;
+    const dist = Math.sqrt(dx*dx+dy*dy)+0.001;
+    const ang = Math.atan2(Math.abs(dx), dy);
+    let ui = 0;
+    if (ang < hb) ui = Math.pow(Math.cos(ang/hb*Math.PI/2), 1+em*3);
+    ui = ui / (dist*dist*8 + 0.05);
+
+    if (ti > 0.001 && ui > 0.001) ratios.push(ui/ti);
+  }
+  if (ratios.length < 5) return 0;
+
+  const mean = ratios.reduce((a,b)=>a+b) / ratios.length;
+  const vari = ratios.reduce((a,r)=>a+(r-mean)**2, 0) / ratios.length;
+  const cv = Math.sqrt(vari) / (Math.abs(mean)+0.001);
+  const mp = Math.abs(Math.log(mean+0.001));
+  return Math.max(0, Math.min(1, Math.exp(-cv*3 - mp*0.8)));
+}
+
+// ─── RENDER ───
+function render(p) {
+  const img = cx.createImageData(W, H);
+  const d = img.data;
+
+  if (cntON < 2 || cntOFF < 2) {
+    // Pre-capture: show dim accumulation
+    for (let i = 0; i < W*H; i++) {
+      const v = Math.floor(Math.min(1, (onR[i]+onG[i]+onB[i])/3 || 0) * 40);
+      d[i*4]=d[i*4+1]=d[i*4+2]=v; d[i*4+3]=255;
+    }
+    cx.putImageData(img, 0, 0);
+    return;
+  }
+
+  const focus = calcFocus(p);
+
+  // Normalize
+  let maxR=0.001, maxG=0.001, maxB=0.001;
+  const step = Math.max(1, Math.floor(W*H/2000));
+  for (let i = 0; i < W*H; i += step) {
+    if (scatR[i]>maxR) maxR=scatR[i];
+    if (scatG[i]>maxG) maxG=scatG[i];
+    if (scatB[i]>maxB) maxB=scatB[i];
+  }
+  // Slight headroom
+  maxR*=1.1; maxG*=1.1; maxB*=1.1;
+
+  const gamma = 0.55 + (1-focus)*0.6;
+  const haze = (1-focus)*0.04;
+
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const i = y*W + x;
+      const pi = i*4;
+
+      const sr = scatR[i]/maxR;
+      const sg = scatG[i]/maxG;
+      const sb = scatB[i]/maxB;
+
+      let pr, pg, pb;
+
+      if (viewMode === 'raw') {
+        // Full color reconstruction
+        pr = Math.pow(Math.min(1, sr), gamma) + haze;
+        pg = Math.pow(Math.min(1, sg), gamma) + haze;
+        pb = Math.pow(Math.min(1, sb), gamma) + haze;
+      } else if (viewMode === 'mono') {
+        // Luminance only — pure white
+        const lum = sr*0.299 + sg*0.587 + sb*0.114;
+        const v = Math.pow(Math.min(1, lum), gamma) + haze;
+        pr = pg = pb = v;
+      } else if (viewMode === 'red') {
+        const v = Math.pow(Math.min(1, sr), gamma) + haze;
+        pr = v; pg = v*0.15; pb = v*0.08;
+      } else if (viewMode === 'green') {
+        const v = Math.pow(Math.min(1, sg), gamma) + haze;
+        pr = v*0.1; pg = v; pb = v*0.12;
+      } else if (viewMode === 'blue') {
+        const v = Math.pow(Math.min(1, sb), gamma) + haze;
+        pr = v*0.08; pg = v*0.15; pb = v;
+      }
+
+      d[pi]   = Math.floor(Math.min(1, pr)*255);
+      d[pi+1] = Math.floor(Math.min(1, pg)*255);
+      d[pi+2] = Math.floor(Math.min(1, pb)*255);
+      d[pi+3] = 255;
+    }
+  }
+
+  cx.putImageData(img, 0, 0);
+
+  // Focus UI
+  const pct = Math.round(focus*100);
+  document.getElementById('fPct').textContent = pct + '%';
+  const ring = document.getElementById('fRing');
+  const pctEl = document.getElementById('fPct');
+  if (focus > 0.82) {
+    ring.classList.add('sharp');
+    pctEl.classList.add('sharp');
+  } else {
+    ring.classList.remove('sharp');
+    pctEl.classList.remove('sharp');
+  }
+}
+
+// ─── MAIN LOOP ───
+function tick(ts) {
+  if (!running) return;
+  const p = P();
+  const period = 1000 / p.lockin;
+
+  if (ts - lastToggle > period/2) {
+    flashOn = !flashOn;
+    lastToggle = ts;
+
+    const dot = document.getElementById('ledDot');
+    const txt = document.getElementById('ledTxt');
+    if (flashOn) { dot.classList.add('on'); txt.textContent='ON'; }
+    else { dot.classList.remove('on'); txt.textContent='OFF'; }
+
+    sampleFrame(flashOn, p);
+    frameIdx++;
+
+    if (cntON > 1 && cntOFF > 1) reconstruct(p);
+
+    document.getElementById('hF').textContent = frameIdx;
+    document.getElementById('hOO').textContent = cntON+'/'+cntOFF;
+
+    if (cntON > 2 && cntOFF > 2) {
+      let sig = 0; const ss = Math.max(1, Math.floor(W*H/500));
+      let cnt = 0;
+      for (let i = 0; i < W*H; i += ss) {
+        sig += diffR[i]**2 + diffG[i]**2 + diffB[i]**2; cnt++;
+      }
+      const rms = Math.sqrt(sig/(cnt*3));
+      const snr = 20*Math.log10(rms/(0.012+p.ambient*0.025)+0.001);
+      document.getElementById('hS').textContent = snr.toFixed(1) + 'dB';
+    }
+  }
+
+  render(p);
+  animId = requestAnimationFrame(tick);
+}
+
+// ─── RESIZE ───
+function resize() {
+  const box = C.parentElement.getBoundingClientRect();
+  const scale = (window.devicePixelRatio||1) > 1 ? 0.45 : 0.65;
+  W = Math.floor(box.width * scale);
+  H = Math.floor(box.height * scale);
+  C.width = W; C.height = H;
+  C.style.width = box.width+'px';
+  C.style.height = box.height+'px';
+  cx.imageSmoothingEnabled = true;
+
+  const n = W*H;
+  onR=new Float32Array(n); onG=new Float32Array(n); onB=new Float32Array(n);
+  offR=new Float32Array(n); offG=new Float32Array(n); offB=new Float32Array(n);
+  diffR=new Float32Array(n); diffG=new Float32Array(n); diffB=new Float32Array(n);
+  scatR=new Float32Array(n); scatG=new Float32Array(n); scatB=new Float32Array(n);
+  cntON=cntOFF=0; frameIdx=0;
+}
+
+// ─── UI ───
+const knobCfg = [
+  {id:'kBeam', d:'dBeam', fmt:v=>v+'°'},
+  {id:'kBase', d:'dBase', fmt:v=>v+'mm'},
+  {id:'kEmit', d:'dEmit', fmt:v=>(v/100).toFixed(2)},
+  {id:'kMuS',  d:'dMuS',  fmt:v=>(v/10).toFixed(1)},
+  {id:'kMuA',  d:'dMuA',  fmt:v=>(v/100).toFixed(2)},
+  {id:'kG',    d:'dG',    fmt:v=>(v/100).toFixed(2)},
+  {id:'kAmb',  d:'dAmb',  fmt:v=>(v/100).toFixed(2)},
+  {id:'kLock', d:'dLock', fmt:v=>v+' Hz'},
+  {id:'kAcc',  d:'dAcc',  fmt:v=>v},
+];
+knobCfg.forEach(k => {
+  const sl = document.getElementById(k.id);
+  const di = document.getElementById(k.d);
+  sl.addEventListener('input', () => {
+    di.textContent = k.fmt(+sl.value);
+    if (running && cntON>1 && cntOFF>1) reconstruct(P());
+  });
+});
+
+document.querySelectorAll('.mode-btn').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('.mode-btn').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    viewMode = b.dataset.m;
+    if (!running && cntON>1) render(P());
+  });
+});
+
+document.getElementById('btnGo').addEventListener('click', () => {
+  const btn = document.getElementById('btnGo');
+  if (running) {
+    running = false;
+    btn.textContent = '▶  CAPTURE';
+    btn.classList.remove('on');
+    if (animId) cancelAnimationFrame(animId);
+    document.getElementById('ledDot').classList.remove('on');
+    document.getElementById('ledTxt').textContent = 'IDLE';
+  } else {
+    resize();
+    genScene();
+    // New truth for each capture session
+    truth.beam = 55 + Math.random()*60;
+    truth.baseline = 7 + Math.random()*14;
+    truth.emission = 0.25 + Math.random()*0.55;
+
+    running = true; flashOn = false; lastToggle = 0;
+    btn.textContent = '■  STOP';
+    btn.classList.add('on');
+    animId = requestAnimationFrame(tick);
+  }
+});
+
+// Init
+window.addEventListener('resize', resize);
+resize();
+cx.fillStyle = '#020304';
+cx.fillRect(0,0,W,H);
+cx.fillStyle = '#1a2030';
+cx.font = `${Math.max(8, Math.floor(W*0.028))}px "JetBrains Mono"`;
+cx.textAlign = 'center';
+cx.textBaseline = 'middle';
+cx.fillText('▶  CAPTURE', W/2, H/2);
+
+</script>
+</body>
+</html>
